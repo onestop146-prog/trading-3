@@ -1,0 +1,38 @@
+# Run this FIRST (Actions tab -> Backtest -> Run workflow).
+# Downloads all the history Alpaca has, simulates the bot with fees and
+# slippage, compares it to holding SPY, and saves backtest_results/.
+# The live bot will not place any trades until this report exists.
+name: Backtest
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bot-data
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: Run backtest
+        env:
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: |
+          python -m bot.backtest
+          cat backtest_results/backtest_report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save results to the repo
+        run: scripts/commit_data.sh "Backtest results"

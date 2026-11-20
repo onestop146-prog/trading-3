@@ -1,0 +1,55 @@
+# Morning and night summary to Discord (times are UTC):
+#   12:41 UTC = 7:41 AM New York in winter, 8:41 AM in summer
+#   21:37 UTC = 4:37 PM New York in winter, 5:37 PM in summer
+# Also refreshes data/summary.md and the bot-vs-SPY chart.
+name: Summary
+
+on:
+  schedule:
+    - cron: "41 12 * * *"
+    - cron: "37 21 * * *"
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: "Which summary to send"
+        type: choice
+        options: [night, morning]
+        default: night
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bot-data
+  cancel-in-progress: false
+
+jobs:
+  summary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: Send summary
+        env:
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TRADING_PAUSED: ${{ vars.TRADING_PAUSED }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            python -m bot.notify "${{ inputs.kind }}"
+          elif [ "${{ github.event.schedule }}" = "41 12 * * *" ]; then
+            python -m bot.notify morning
+          else
+            python -m bot.notify night
+          fi
+
+      - name: Save results to the repo
+        if: always()
+        run: scripts/commit_data.sh "Summary"
