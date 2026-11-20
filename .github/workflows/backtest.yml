@@ -6,6 +6,9 @@ name: Backtest
 
 on:
   workflow_dispatch: {}
+  push:                   # TEMPORARY: one-off run before this is merged to main
+    branches: [claude/gallant-brown-desje5]
+    paths: [".github/workflows/backtest.yml"]
 
 permissions:
   contents: write
